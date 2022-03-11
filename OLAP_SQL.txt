@@ -1,0 +1,110 @@
+ZAD1
+Wyświetl informację na temat liczby sprzedanych okapów (podgrupa) w 2006 roku, w poszczególnych regionach, wraz z podsumowaniami po wszystkich wymiarach. 
+
+Select Dim_Towary.Towar, Dim_Regiony.Region, sum(Sprzedaz_hist.ilosc) AS 'ilosc'
+From Sprzedaz_hist
+	Join Dim_Towary on Sprzedaz_hist.IdTowary=Dim_Towary.id
+	Join Dim_Regiony on Sprzedaz_hist.IdRegion=Dim_Regiony.id
+	join Dim_Czas on Sprzedaz_hist.IdCzas= Dim_Czas.Id
+Where Dim_Towary.Podgrupa='okapy' and Dim_Czas.Rok='2006'
+GROUP BY CUBE(Dim_Regiony.Region,Dim_Towary.Towar);
+
+Zad 2
+Wyświetl wynik zad 1 w postaci podobnej do poniższej:
+
+WITH CTE_FRANIA
+AS	(SELECT Dim_Towary.Towar, Dim_regiony.Region, Sum(Sprzedaz_hist.Ilosc) as 'ilosc'
+		From Sprzedaz_hist
+			Join Dim_Towary on Sprzedaz_hist.IdTowary=Dim_Towary.Id
+			Join Dim_Czas on Sprzedaz_hist.IdCzas=Dim_Czas.Id
+			Join Dim_Regiony on Sprzedaz_hist.IdRegion=Dim_Regiony.Id
+		Where Podgrupa='okapy' and Rok='2006'
+		Group by CUBE (Towar, Region))
+SELECT Region, "okapy teleskopowe", "okapy meblowe", "okapy kominowe", "okapy uniwersalne", "okapy teleskopowe"+ "okapy meblowe"+ "okapy kominowe"+ "okapy uniwersalne" AS "okapy razem"
+From CTE_FRANIA
+PIVOT(Sum("ilosc") for Towar in ("okapy kominowe", "okapy meblowe", "okapy teleskopowe", "okapy uniwersalne")) AS P order by "okapy razem";
+
+zad 3
+Wyznacz stopień realizacji planu (procentowy) w poszczególnych regionach (tylko rok 2007, styczeń-kwiecień, sumarycznie) 
+
+WITH CTE_FRANIA
+	AS (Select Region, sum(ilosc) as ilosc_hist from Sprzedaz_hist
+		Join Dim_Czas on Sprzedaz_hist.idCzas=Dim_Czas.Id
+		Join Dim_regiony on Sprzedaz_hist.IdRegion=Dim_Regiony.Id
+		where Rok=2007 and Miesiac >=1 and miesiac <=4
+		group by Region),
+CTE_FRANIA2
+	as(Select Region, sum(ilosc) as ilosc_plan from Sprzedaz_plan
+		Join Dim_Czas on Sprzedaz_plan.IdCzas = Dim_Czas.Id
+		Join Dim_regiony on Sprzedaz_plan.IdRegion=Dim_Regiony.Id
+		Where Rok=2007 And Miesiac>=1 and Miesiac<=4
+		group by Region)
+select CTE_FRANIA.Region, ilosc_hist, ilosc_plan, CAST ((1.0*CTE_FRANIA.ilosc_hist/CTE_FRANIA2.ilosc_plan)*100 AS decimal(6,2)) as [realizacja%] 
+from CTE_FRANIA
+left join CTE_FRANIA2 on CTE_FRANIA.Region = CTE_FRANIA2.Region;
+
+zad4
+Zestaw razem wartość bieżącego obrotu ze sprzedaży poszczególnych okapów z tą wartością z poprzedniego kwartału, dla roku 2006.
+
+WITH CTE_FRANIA AS 
+	(Select T.Towar as [towar], C.Kwartal as [kwartal], sum(Sprzedaz_hist.Obrot) as [obrot]
+	from Sprzedaz_hist
+	JOIN Dim_Towary T on T.id=Sprzedaz_hist.IdTowary
+	Join Dim_Czas C on C.Id=Sprzedaz_hist.IdCzas
+	where T.Podgrupa='okapy' and C.Rok=2006
+	GROUP BY C.Kwartal, T.Towar
+	)
+Select F1.towar, F1.kwartal, F1.obrot, F2.obrot, CASE WHEN F2.obrot>F1.obrot THEN 'spadek' WHEN F2.obrot<F1.obrot THEN 'wzrost' WHEN F1.kwartal=1 then '-' END as [zmiana]
+from CTE_FRANIA F1
+left join CTE_FRANIA F2 on F1.Towar = F2.Towar
+						and F1.kwartal = F2.kwartal+1
+						and F1.obrot<>F2.obrot;
+
+zad 5
+Wyznacz sumę liczby sprzedanych sztuk okapów kominowych, narastającą miesiącami, dla roku 2006.
+
+with CTE_FRANIA5 AS
+	(SELECT Towar, Miesiac, sum (Sprzedaz_hist.Ilosc) as [ilosc biezacy miesiac]
+	from Sprzedaz_hist 
+	join Dim_Towary on Sprzedaz_hist.IdTowary=Dim_Towary.Id
+	join Dim_Czas on Dim_Czas.id=Sprzedaz_hist.IdCzas
+	where Towar='okapy kominowe' and Rok=2006
+	group by Miesiac, Towar	
+	)
+Select F1.Towar as [towar], F1.[ilosc biezacy miesiac], sum(F2.[ilosc biezacy miesiac])as [suma poprzednich miesiecy]
+from CTE_FRANIA5 F1, CTE_FRANIA5 F2
+where F2.Miesiac<=F1.Miesiac
+group by F1.Miesiac, F1.Towar, F1.[ilosc biezacy miesiac];
+
+zad 6
+Dla każdego okapu zestaw jego sprzedaż (obrot) ze sprzedażą w całej podgrupie - okapy - i całej grupie - BI - w 2006r i wylicz % udziału.
+
+WITH CTE_FRANIA AS 
+	(Select T.Towar as [towar], t.Podgrupa, sum(Sprzedaz_hist.obrot) as [obrot_towar]
+	from Sprzedaz_hist
+	JOIN Dim_Towary T on T.id=Sprzedaz_hist.IdTowary
+	Join Dim_Czas C on C.Id=Sprzedaz_hist.IdCzas
+	where T.Podgrupa='okapy' and C.Rok=2006
+	GROUP BY T.Towar, t.Podgrupa
+	),
+CTE_FRANIA2 AS 
+	(Select T.Podgrupa as [podgrupa], T.Grupa, sum(Sprzedaz_hist.obrot) as [obrot_okapy]
+	from Sprzedaz_hist
+	JOIN Dim_Towary T on T.id=Sprzedaz_hist.IdTowary
+	Join Dim_Czas C on C.Id=Sprzedaz_hist.IdCzas
+	where T.Podgrupa='okapy' and C.Rok=2006 and T.Grupa='BI'
+	GROUP BY T.Podgrupa, T.Grupa
+	),
+CTE_FRANIA3 AS 
+	(Select T.Grupa as [grupa], sum(Sprzedaz_hist.obrot) as [obrot_BI]
+	from Sprzedaz_hist
+	JOIN Dim_Towary T on T.id=Sprzedaz_hist.IdTowary
+	Join Dim_Czas C on C.Id=Sprzedaz_hist.IdCzas
+	where T.Grupa='BI' and C.Rok=2006 
+	GROUP BY T.Grupa
+	)
+SELECT F1.towar, F1.obrot_towar, CAST ((F1.obrot_towar/F2.obrot_okapy)*100 as decimal(6,2)) AS [udzial w podgrupie okapy %], CAST ((F1.obrot_towar/F3.obrot_BI)*100 as decimal(6,2)) AS [udzial w BI %]
+from CTE_FRANIA F1 
+inner join CTE_FRANIA2 F2 on F2.podgrupa=F1.podgrupa
+inner join CTE_FRANIA3 F3 on F2.Grupa=F3.grupa;
+							

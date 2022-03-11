@@ -1,0 +1,116 @@
+--zad1
+Jaki był obrót ze sprzedaży i liczba sprzedanych sztuk okapów (podgrupa) w poszczególnych regionach w drugim kwartale 2006 roku?
+
+SELECT  {([Measures].[Obrot]), ([Measures].[Ilosc])} ON COLUMNS,
+       {[Dim Regiony].[Region], [Dim Regiony].[Region].[Region]} ON ROWS
+FROM    [Frania_Cube]
+WHERE   {([Dim Czas].[Hierarchy].[Rok].&[2006].&[2], [Dim Towary].[Podgrupa].&[okapy])};
+
+--zad2
+Poniższe zapytanie SQL dla hurtowni FraniaDW wyraź w języku MDX dla kostki FraniaCube:
+
+SELECT  {[Measures].[Ilosc], [Measures].[Sprzedaz Hist Count]} ON COLUMNS,
+       {([Dim Towary].[Towar].[Towar], [Dim Regiony].[Region].[Region])} ON ROWS
+FROM    [Frania_Cube]
+WHERE   {([Dim Towary].[Podgrupa].&[okapy], [Dim Czas].[Rok].&[2006])};
+
+--zad3
+Podaj podobne informacje co w zadaniu 2 (tylko ilość, z podziałem na regiony i towary, dla okapów w 2006r.) ale w następującej formie:
+
+SELECT  {[Dim Towary].[Towar].[Towar]} ON COLUMNS,
+       {[Dim Regiony].[Region].[Region]} ON ROWS
+FROM    [Frania_Cube]
+WHERE   {([Measures].[Ilosc],[Dim Towary].[Podgrupa].&[okapy], [Dim Czas].[Rok].&[2006])};
+
+--zad4
+Podaj informacje o liczbie sprzedanych okapów poszczególnych rodzajów, w pierwszych czterech miesiącach 2006 roku
+ 
+SELECT  {([Dim Czas].[Miesiac].&[1]:[Dim Czas].[Miesiac].&[4])} ON COLUMNS,
+       [Dim Towary].[Hierarchy].[Podgrupa Hierarchia].&[okapy BI].CHILDREN ON ROWS
+FROM    [Frania_Cube]
+WHERE   {([Measures].[Ilosc], [Dim Czas].[Rok].&[2006])};
+
+--zad5
+Podaj informację o liczbie sprzedanych zmywarek w 2007 r, posortowaną malejąco:
+
+SELECT {[Measures].[Ilosc]} ON COLUMNS,
+        NONEMPTYCROSSJOIN (ORDER (([Dim Towary].[Grupa].[Grupa],[Dim Regiony].[Region].[Region]),([Measures].[Ilosc]) ,DESC )) ON ROWS
+FROM   [Frania_Cube]
+WHERE  ([Dim Towary].[Podgrupa].&[zmywarki], [Dim Czas].[Rok].&[2007]);
+
+--zad6
+Wyświetl Wartość (cena*ilosc, fakt zdefiniowany wcześniej w kostce) sprzedaży dla klientów AVANS i MEDIA MARKT wraz z podsumowaniem
+
+WITH SET [ZbiorKlienci] AS '{[Dim Klienci].[Klient].&[AVANS], [Dim Klienci].[Klient].&[MEDIA MARKT]}'
+     MEMBER [Dim klienci].[klient].[zagregowane] as AGGREGATE([ZbiorKlienci])
+SELECT  {[Measures].[Wartosc Hist]} ON COLUMNS,
+        {([ZbiorKlienci]), ([Dim klienci].[klient].[zagregowane])} ON ROWS
+FROM  [Frania_Cube];
+
+--zad7 
+Podaj informacje o regionach dokonujących najwięcej zakupów zmywarek z grupy BI i FS, dla roku 2007
+
+WITH MEMBER [Measures].[max_ilosc] AS Max([Dim Regiony].[Region].[Region], [Measures].[Ilosc])
+SELECT  {[Measures].[Ilosc]} ON COLUMNS,
+        {([Dim Towary].[Grupa].[Grupa], FILTER(([Dim Regiony].[Region].[Region]), ([Measures].[Ilosc]=[Measures].[max_ilosc])))} ON ROWS
+FROM [Frania_Cube]
+WHERE {([Dim Czas].[Rok].&[2007],[Dim Towary].[Podgrupa].&[zmywarki])};
+
+--zad8
+Podaj, jaki jest procentowy udział w rynku poszczególnych podgrup sprzętowych (stosunek obrotu danej podgrupy do całkowitego obrotu)
+
+WITH MEMBER [Measures].[UdzialRynek] AS  '([Measures].[Obrot])/([Measures].[Obrot], [Dim Towary].[Podgrupa].[All])', format = '#.00%'
+SELECT  {[Measures].[UdzialRynek]} ON COLUMNS,
+        {[Dim Towary].[Podgrupa].[Podgrupa]} ON ROWS
+FROM   [Frania_Cube];
+
+--zad9 
+Dla każdego towaru podaj do jakiej podgrupy i grupy należy:
+
+WITH  MEMBER [Rodzic] as '[Dim Towary].[Hierarchy].Parent.Name'
+	MEMBER [Podprodzic] as '[Dim Towary].[Hierarchy].Parent.Parent.Name'
+SELECT {[Rodzic], [Podprodzic]} on columns,
+       [Dim Towary].[Hierarchy].[Towar Hierarchia].Members on rows
+FROM [Frania_Cube];
+
+--zad10
+Wykorzystując doświadczenia z zadania 8 i 9 podaj udział procentowy obrotu poszczególnych towarów w ich podgrupach i grupach produktowych
+
+WITH 
+    MEMBER [Measures].[UdzialRynek] AS  '([Measures].[Obrot]/([Measures].[Obrot], [Dim Towary].[Hierarchy].[All]))', format = '#0.00%'
+    MEMBER [Measures].[UdzialPodgrupa] as '([Measures].[Obrot]/([Measures].[Obrot], [Dim Towary].[Hierarchy].Parent))', format = '#0.00%'
+    MEMBER [Measures].[UdzialGrupa] as '([Measures].[Obrot]/([Measures].[Obrot], [Dim Towary].[Hierarchy].Parent.Parent))', format = '#0.00%'
+SELECT {[Measures].[UdzialPodgrupa], [Measures].[UdzialGrupa], [Measures].[UdzialRynek]} on columns,
+       [Dim Towary].[Hierarchy].[Towar Hierarchia].members on rows
+FROM [Frania_Cube];
+
+
+--zad11
+Podaj liczbę zakupionych towarów w poszczególnych regionach; następnie utwórz dwa podsumowania dla zbioru 3 najlepszych regionów oraz reszty regionów
+
+WITH SET [Najlepsi] as 'TOPCOUNT([Dim Regiony].[Region].[Region], 3, [Measures].[Sprzedaz Hist Count])'
+     SET [Reszta] as 'EXCEPT([Dim Regiony].[Region].[All], [Najlepsi])'
+     MEMBER [Dim Regiony].[Region].[Najlepsi-suma] as 'SUM([Najlepsi])'
+     MEMBER [Dim Regiony].[Region].[Reszta-suma] as 'AGGREGATE([Reszta]) - [Dim Regiony].[Region].[Najlepsi-suma]'
+SELECT  [Measures].[Ilosc] ON COLUMNS,
+        {([Dim Regiony].[Region].[Region]), ([Dim Regiony].[Region].[Najlepsi-suma]), ([Dim Regiony].[Region].[Reszta-suma])} ON ROWS
+FROM  [Frania_Cube];
+
+--zad12
+Zbadaj sprzedaż wszystkich lodówek (lodowki dwudrzwiowe i lodowki kombi) w kolejnych miesiącach 2006 wraz z ilościa skumulowaną (tzn liczba sprzedanych sztuk dla kazdego miesiąca i suma narastająca)
+
+WITH
+   MEMBER [Measures].[Akumulacja] as 'Sum(YTD([Dim Czas].[Hierarchy].Currentmember),[Measures].[Ilosc])'
+SELECT {[Measures].[Ilosc], [Measures].[Akumulacja]} ON COLUMNS,
+    ([Dim Czas].[Hierarchy].[Miesiac]) on rows
+FROM [Frania_Cube]
+WHERE {([Dim Towary].[Towar].&[lodowki dwudrzwiowe], [Dim Czas].[Rok].&[2006]), ([Dim Towary].[Towar].&[lodowki kombi], [Dim Czas].[Rok].&[2006])}
+
+--zad13
+Utwórz miarę Skok, która zbada, czy w danym regionie od ostatniego kwartału nastąpił wzrost czy spadek obrotów. (weź pod uwagę tylko rok 2007)
+
+WITH MEMBER [Skok] AS 'IIF(ISEMPTY(([Measures].[Obrot], [Dim Czas].[Kwartal].PrevMember)), "-",
+                       IIF(([Measures].[Obrot], [Dim Czas].[Kwartal].CurrentMember) > ([Measures].[Obrot], [Dim Czas].[Kwartal].PrevMember), "wzrost" , "spadek"))'
+SELECT {([Measures].[Obrot]), ([Skok])} ON COLUMNS,
+       {([Dim Regiony].[Region].[Region], [Dim Czas].[Kwartal].[Kwartal])} ON ROWS
+FROM [Frania_Cube];
