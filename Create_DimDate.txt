@@ -1,0 +1,85 @@
+DROP TABLE  IF EXISTS Dim_Dates;
+
+CREATE TABLE Dim_Dates
+([date_bk]              NVARCHAR(100),
+ [date_value]           DATE,
+ [date_text]            NVARCHAR(100),
+ [date_month_text]      INT,
+ [date_year_text]       INT,
+ [date_year_month_text] CHAR(6),
+ [date_quarter_text]    INT
+);
+
+
+
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+ALTER PROCEDURE [dbo].[sPopulateDimDates_v2]
+@FromDate DATE = '1950-01-01',
+@ToDate DATE = '2020-12-31'
+
+AS
+BEGIN
+DECLARE @DimDates TABLE
+(
+  date_bk nvarchar(100), 
+  date_value datetime,
+  date_text nvarchar(10),
+  date_month_text nvarchar(2),
+  date_year_text nvarchar(4),
+  date_year_month_text nvarchar(7),
+  date_quarter_text nvarchar(2)
+);
+
+--Setting language
+SET LANGUAGE English
+ 
+--Populating Dimension
+WHILE @FromDate <= @ToDate
+	BEGIN
+		INSERT INTO @DimDates(
+			[date_bk], 
+			[date_value], 
+			[date_text], 
+			[date_month_text], 
+			[date_year_text], 
+			[date_year_month_text], 
+			[date_quarter_text]
+            )
+            SELECT 
+			convert(nvarchar(100), @FromDate,20) AS [date_bk],
+		    @FromDate AS [date_value],
+			convert(nvarchar(100), @FromDate,20) AS [date_text],
+                MONTH(@FromDate) AS [Month],
+                YEAR(@FromDate) AS [Year],
+				FORMAT(@FromDate, 'yyyyMM') as [date_year_month_text],
+                DATENAME(QUARTER,@FromDate) AS [Quarter]
+      SET @FromDate = DATEADD(DAY, 1, @FromDate)
+END
+ INSERT INTO dbo.dim_dates(
+			[date_bk], 
+			[date_value], 
+			[date_text], 
+			[date_month_text], 
+			[date_year_text], 
+			[date_year_month_text], 
+			[date_quarter_text]
+            )
+SELECT [date_bk], 
+			[date_value], 
+			[date_text], 
+			[date_month_text], 
+			[date_year_text], 
+			[date_year_month_text], 
+			[date_quarter_text]
+ FROM @DimDates
+ 
+END
+GO
