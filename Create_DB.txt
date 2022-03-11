@@ -1,0 +1,160 @@
+
+------ delete
+
+IF OBJECT_ID('Sprzedaz_Hist', 'U') IS NOT NULL 
+	drop table Sprzedaz_Hist
+
+IF OBJECT_ID('Sprzedaz_Plan', 'U') IS NOT NULL 
+	drop table Sprzedaz_Plan
+
+IF OBJECT_ID('Dim_Czas', 'U') IS NOT NULL 
+	drop table Dim_Czas
+
+IF OBJECT_ID('Dim_Regiony', 'U') IS NOT NULL 
+	drop table Dim_Regiony
+
+IF OBJECT_ID('Dim_Towary', 'U') IS NOT NULL 
+	drop table Dim_Towary
+
+IF OBJECT_ID('Dim_Klienci', 'U') IS NOT NULL 
+	drop table Dim_Klienci
+
+GO
+
+------- create tables
+
+
+CREATE TABLE [dbo].[Dim_Czas](
+	[Id] [char](6) COLLATE Polish_CI_AS NOT NULL,
+	[Miesiac] [int] NULL,
+	[Kwartal] [int] NULL,
+	[Rok]	  [int] NULL,
+ CONSTRAINT [pk_Czas] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)) 
+
+
+CREATE TABLE [dbo].[Dim_Towary](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[Towar] [varchar](50) COLLATE Polish_CI_AS NULL,
+	[Podgrupa] [varchar](50) COLLATE Polish_CI_AS NULL,
+	[Grupa] [char](2) COLLATE Polish_CI_AS NULL,
+ CONSTRAINT [pk_Towary] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+))
+
+
+CREATE TABLE [dbo].[Dim_Regiony](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[Region] [varchar](50) COLLATE Polish_CI_AS NULL,
+ CONSTRAINT [pk_Regiony] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+))
+
+
+CREATE TABLE [dbo].[Dim_Klienci](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[Klient] [varchar](50) COLLATE Polish_CI_AS NULL,
+ CONSTRAINT [pk_Klienci] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+))
+
+
+CREATE TABLE [dbo].[Sprzedaz_hist](
+	[IdKlient] [int] NOT NULL,
+	[IdRegion] [int] NOT NULL,
+	[IdTowary] [int] NOT NULL,
+	[IdCzas] [char](6) COLLATE Polish_CI_AS NOT NULL,
+	[Cena] [money] NULL,
+	[Ilosc] [int] NULL,
+	[Obrot] [money] NULL,
+ CONSTRAINT [pk_Sprzedaz_hist] PRIMARY KEY CLUSTERED 
+(
+	[IdKlient] ASC,
+	[IdRegion] ASC,
+	[IdTowary] ASC,
+	[IdCzas] ASC
+)WITH (IGNORE_DUP_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+
+ALTER TABLE [dbo].[Sprzedaz_hist]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_hist_klient] FOREIGN KEY([IdKlient])
+REFERENCES [dbo].[Dim_Klienci] ([Id])
+GO
+ALTER TABLE [dbo].[Sprzedaz_hist]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_hist_region] FOREIGN KEY([IdRegion])
+REFERENCES [dbo].[Dim_Regiony] ([Id])
+GO
+ALTER TABLE [dbo].[Sprzedaz_hist]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_hist_towar] FOREIGN KEY([IdTowary])
+REFERENCES [dbo].[Dim_Towary] ([Id])
+GO
+ALTER TABLE [dbo].[Sprzedaz_hist]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_hist_czas] FOREIGN KEY([IdCzas])
+REFERENCES [dbo].[Dim_Czas] ([Id])
+
+
+CREATE TABLE [dbo].[Sprzedaz_plan](
+	[IdKlient] [int] NOT NULL,
+	[IdRegion] [int] NOT NULL,
+	[IdTowary] [int] NOT NULL,
+	[IdCzas] [char](6) COLLATE Polish_CI_AS NOT NULL,
+	[Cena] [money] NULL,
+	[Ilosc] [int] NULL,
+	[Obrot] [money] NULL,
+ CONSTRAINT [pk_Sprzedaz_plan] PRIMARY KEY CLUSTERED 
+(
+	[IdKlient] ASC,
+	[IdRegion] ASC,
+	[IdTowary] ASC,
+	[IdCzas] ASC
+)WITH (IGNORE_DUP_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+
+ALTER TABLE [dbo].[Sprzedaz_plan]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_plan_klient] FOREIGN KEY([IdKlient])
+REFERENCES [dbo].[Dim_Klienci] ([Id])
+GO
+ALTER TABLE [dbo].[Sprzedaz_plan]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_plan_region] FOREIGN KEY([IdRegion])
+REFERENCES [dbo].[Dim_Regiony] ([Id])
+GO
+ALTER TABLE [dbo].[Sprzedaz_plan]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_plan_towar] FOREIGN KEY([IdTowary])
+REFERENCES [dbo].[Dim_Towary] ([Id])
+GO
+ALTER TABLE [dbo].[Sprzedaz_plan]  WITH CHECK ADD  CONSTRAINT [fk_sprzedaz_plan_czas] FOREIGN KEY([IdCzas])
+REFERENCES [dbo].[Dim_Czas] ([Id])
+GO
+
+-----------------------------------------
+-- insert into Towary
+
+INSERT INTO Dim_Towary (towar, podgrupa, grupa) VALUES 
+('chlodziarki', 'chlodnictwo', 'BI'),
+('lodowki dwudrzwiowe', 'chlodnictwo', 'BI'),
+('lodowki kombi', 'chlodnictwo', 'BI'),
+('zamrazarki', 'chlodnictwo', 'BI'),
+('mikrofalowki elektronicznie', 'mikrofalowki', 'BI'),
+('mikrofalowki mechanicznie', 'mikrofalowki', 'BI'),
+('okapy kominowe', 'okapy', 'BI'),
+('okapy meblowe', 'okapy', 'BI'),
+('okapy teleskopowe', 'okapy', 'BI'),
+('okapy uniwersalne', 'okapy', 'BI'),
+('kuchnie do zabudowy', 'sprzet grzejny', 'BI'),
+('piekarniki', 'sprzet grzejny', 'BI'),
+('plyty grzejne', 'sprzet grzejny', 'BI'),
+('zmywarki 45', 'zmywarki', 'BI'),
+('zmywarki 60', 'zmywarki', 'BI'),
+('chlodziarki', 'chlodnictwo', 'FS'),
+('lodowki dwudrzwiowe', 'chlodnictwo', 'FS'),
+('lodowki kombi', 'chlodnictwo', 'FS'),
+('zamrazarki', 'chlodnictwo', 'FS'),
+('mikrofalowki elektronicznie', 'mikrofalowki', 'FS'),
+('mikrofalowki mechanicznie', 'mikrofalowki', 'FS'),
+('pralki front', 'pralki', 'FS'),
+('pralki top', 'pralki', 'FS'),
+('kuchnie', 'sprzet grzejny', 'FS'),
+('zmywarki 45', 'zmywarki', 'FS'),
+('zmywarki 60', 'zmywarki', 'FS');
